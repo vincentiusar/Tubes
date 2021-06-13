@@ -44,10 +44,10 @@ def routerNet():
     net = Mininet( link=TCLink )
     
     # Add Router R1, R2, R3, R4
-    R1 = net.addHost( 'R1', ip='10.1.1.1/27' )
-    R2 = net.addHost( 'R2', ip='10.2.1.1/27' )
-    R3 = net.addHost( 'R3', ip='10.3.1.1/27' )
-    R4 = net.addHost( 'R4', ip='10.4.1.1/27' )
+    R1 = net.addHost( 'R1', ip='10.1.1.1/27', buffer=100 )
+    R2 = net.addHost( 'R2', ip='10.2.1.1/27', buffer=100 )
+    R3 = net.addHost( 'R3', ip='10.3.1.1/27', buffer=100 )
+    R4 = net.addHost( 'R4', ip='10.4.1.1/27', buffer=100 )
     
     # Add Host HA, HB
     HA = net.addHost( 'HA', ip='10.1.1.4/27', defaultRoute = 'via 10.1.1.1' )
