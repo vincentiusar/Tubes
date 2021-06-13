@@ -8,8 +8,8 @@ from mininet.util import pmonitor
 from signal import SIGINT
 from time import time
 import os
-'''
-def testIperf( net, server='h0', clients=('h1') ):
+
+def testIperf( net, server, clients=() ):
     popens = {}
     tperf = 20
     tout = ( tperf + 1 ) * 4
@@ -18,7 +18,7 @@ def testIperf( net, server='h0', clients=('h1') ):
 
     popens[ net[ server ] ] = net[ server ].popen( 'iperf -s -t '+str( tout ) )
     for client in clients:
-        client = 'h1'
+        client = clients
         popens[ net[ client ] ] = net[ client ].popen( 'iperf -c '+net[ server ].IP()+' -i '+str(inv)+' -t '+str( tperf ) )
         break
 
@@ -38,109 +38,169 @@ def testIperf( net, server='h0', clients=('h1') ):
     print(logclient1)
     print(logclient2)
     print(logclient3)
-'''
+
 def routerNet():
     # Run Mininet
     net = Mininet( link=TCLink )
     
-    # Add Router
-    r1 = net.addHost( 'r1', ip='10.1.1.1/24' )
-    r2 = net.addHost( 'r2', ip='10.2.1.1/24' )
-    r3 = net.addHost( 'r3', ip='10.1.2.1/24' )
-    r4 = net.addHost( 'r4', ip='10.2.2.1/24' )
+    # Add Router R1, R2, R3, R4
+    R1 = net.addHost( 'R1', ip='10.1.1.1/27' )
+    R2 = net.addHost( 'R2', ip='10.2.1.1/27' )
+    R3 = net.addHost( 'R3', ip='10.3.1.1/27' )
+    R4 = net.addHost( 'R4', ip='10.4.1.1/27' )
     
-    # Add Host h0,h1,h2,h3
-    h0 = net.addHost( 'h0', ip='10.1.1.4/29', defaultRoute = None )
-    h1 = net.addHost( 'h1', ip='10.1.2.4/29', defaultRoute = None )
+    # Add Host HA, HB
+    HA = net.addHost( 'HA', ip='10.1.1.4/27', defaultRoute = 'via 10.1.1.1' )
+    HB = net.addHost( 'HB', ip='10.3.1.4/27', defaultRoute = 'via 10.3.1.1' )
+    
+    # Add Max buffer
+    linkopts0 = dict(max_queue_size = 20)
     
     # Add Link
-    net.addLink(h0, r1, intfName1='h0-eth0',intfName2='r1-eth0', bw=1 )
-    net.addLink(h1, r3, intfName1='h1-eth0',intfName2='r3-eth0', bw=1 ) 
-    net.addLink(h0, r2, intfName1='h0-eth1',intfName2='r2-eth0', bw=1 )
-    net.addLink(h1, r4, intfName1='h1-eth1',intfName2='r4-eth0', bw=1 )
-    net.addLink(r1, r3, intfName1='r1-eth1', intfName2='r3-eth1')
-    net.addLink(r2, r4, intfName1='r2-eth1', intfName2='r4-eth1')
-    net.addLink(r1, r4, intfName1='r1-eth2', intfName2='r4-eth2')
-    net.addLink(r2, r3, intfName1='r2-eth2', intfName2='r3-eth2')
+    net.addLink(HA, R1, intfName1='HA-eth0',intfName2='R1-eth0', bw=1, **linkopts0 )
+    net.addLink(HB, R3, intfName1='HB-eth0',intfName2='R3-eth0', bw=1, **linkopts0 ) 
+    net.addLink(HA, R2, intfName1='HA-eth1',intfName2='R2-eth0', bw=1, **linkopts0 )
+    net.addLink(HB, R4, intfName1='HB-eth1',intfName2='R4-eth0', bw=1, **linkopts0 )
+    net.addLink(R1, R3, intfName1='R1-eth1', intfName2='R3-eth1', bw=1, **linkopts0 )
+    net.addLink(R2, R4, intfName1='R2-eth1', intfName2='R4-eth1', bw=1, **linkopts0 )
+    net.addLink(R1, R4, intfName1='R1-eth2', intfName2='R4-eth2', bw=0.5, **linkopts0 )
+    net.addLink(R2, R3, intfName1='R2-eth2', intfName2='R3-eth2', bw=0.5, **linkopts0 )
    
     # Add IP host
-    h0.cmd( 'ip addr add 10.1.1.4/24 brd + dev h0-eth0' )
-    h0.cmd( 'ip addr add 10.2.1.4/24 brd + dev h0-eth1' )
+    HA.cmd( 'ip addr add 10.1.1.4/27 brd + dev HA-eth0' )
+    HA.cmd( 'ip addr add 10.2.1.4/27 brd + dev HA-eth1' )
     
-    h1.cmd( 'ip addr add 10.1.2.4/24 brd + dev h1-eth0' )
-    h1.cmd( 'ip addr add 10.2.2.4/24 brd + dev h1-eth1' )
+    HB.cmd( 'ip addr add 10.3.1.4/27 brd + dev HB-eth0' )
+    HB.cmd( 'ip addr add 10.4.1.4/27 brd + dev HB-eth1' )
       
     # Add IP Address for Router
-    r1.cmd( 'ip addr add 10.1.1.1/24 brd + dev r1-eth0' )
-    r1.cmd( 'ip addr add 10.1.255.1/24 brd + dev r1-eth1' )
-    r1.cmd( 'ip addr add 10.1.255.15/24 brd + dev r1-eth2' )
+    R1.cmd( 'ip addr add 10.1.1.1/27 brd + dev R1-eth0' )
+    R1.cmd( 'ip addr add 10.1.255.1/29 brd + dev R1-eth1' )
+    R1.cmd( 'ip addr add 10.2.255.29/29 brd + dev R1-eth2' )
     
-    r2.cmd( 'ip addr add 10.2.1.1/24 brd + dev r2-eth0' )
-    r2.cmd( 'ip addr add 10.2.255.9/24 brd + dev r2-eth1' )
-    r2.cmd( 'ip addr add 10.2.255.19/24 brd + dev r2-eth2' )
+    R2.cmd( 'ip addr add 10.2.1.1/27 brd + dev R2-eth0' )
+    R2.cmd( 'ip addr add 10.1.255.9/29 brd + dev R2-eth1' )
+    R2.cmd( 'ip addr add 10.2.255.19/29 brd + dev R2-eth2' )
 
-    r3.cmd( 'ip addr add 10.1.2.1/24 brd + dev r3-eth0' )
-    r3.cmd( 'ip addr add 10.1.255.2/24 brd + dev r3-eth1' )
-    r3.cmd( 'ip addr add 10.2.255.20/24 brd + dev r3-eth2' )
+    R3.cmd( 'ip addr add 10.3.1.1/27 brd + dev R3-eth0' )
+    R3.cmd( 'ip addr add 10.1.255.2/29 brd + dev R3-eth1' )
+    R3.cmd( 'ip addr add 10.2.255.20/29 brd + dev R3-eth2' )
     
-    r4.cmd( 'ip addr add 10.2.2.1/24 brd + dev r4-eth0' )
-    r4.cmd( 'ip addr add 10.2.255.10/24 brd + dev r4-eth1' )
-    r4.cmd( 'ip addr add 10.2.255.16/24 brd + dev r4-eth2' )
+    R4.cmd( 'ip addr add 10.4.1.1/27 brd + dev R4-eth0' )
+    R4.cmd( 'ip addr add 10.1.255.10/29 brd + dev R4-eth1' )
+    R4.cmd( 'ip addr add 10.2.255.30/29 brd + dev R4-eth2' )
     
     # Start IP Forward on Router
-    r1.cmd( 'sysctl net.ipv4.ip_forward=1' )
-    r2.cmd( 'sysctl net.ipv4.ip_forward=1' )
-    r3.cmd( 'sysctl net.ipv4.ip_forward=1' )
-    r4.cmd( 'sysctl net.ipv4.ip_forward=1' )
-    # r4.cmd( 'sysctl net.ipv4.ip_forward=1' )
-
+    R1.cmd( 'sysctl net.ipv4.ip_forward=1' )
+    R2.cmd( 'sysctl net.ipv4.ip_forward=1' )
+    R3.cmd( 'sysctl net.ipv4.ip_forward=1' )
+    R4.cmd( 'sysctl net.ipv4.ip_forward=1' )
+    
     ### STATIC ROUTING ###
-    # r1 -- r3 -- r2
     
-    r3.cmd('ip route add 10.1.1.0/24 via 10.1.255.1 dev r3-eth1')
-    r1.cmd('ip route add 10.1.2.0/24 via 10.1.255.2 dev r1-eth1')
+    HA.cmd('route add -net 10.1.1.0 netmask 255.255.255.224 gw 10.1.1.1')
+    HA.cmd('route add -net 10.2.1.0 netmask 255.255.255.224 gw 10.2.1.1')
+    HB.cmd('route add -net 10.3.1.0 netmask 255.255.255.224 gw 10.3.1.1')
+    HB.cmd('route add -net 10.4.1.0 netmask 255.255.255.224 gw 10.4.1.1')
+    
+    R1.cmd('ip route add 10.2.1.0/27 dev R1-eth0')
+    R2.cmd('ip route add 10.1.1.0/27 dev R2-eth0')
+    R3.cmd('ip route add 10.4.1.0/27 dev R3-eth0')
+    R4.cmd('ip route add 10.3.1.0/27 dev R4-eth0')
+    
+    R3.cmd('ip route add 10.1.1.0/27 via 10.1.255.1 dev R3-eth1')
+    R1.cmd('ip route add 10.3.1.0/27 via 10.1.255.2 dev R1-eth1')
 
-    r4.cmd('ip route add 10.2.1.0/24 via 10.2.255.9 dev r4-eth1')
-    r2.cmd('ip route add 10.2.2.0/24 via 10.2.255.10 dev r2-eth1')
+    R4.cmd('ip route add 10.2.1.0/27 via 10.1.255.9 dev R4-eth1')
+    R2.cmd('ip route add 10.4.1.0/27 via 10.1.255.10 dev R2-eth1')
     
-    r4.cmd('ip route add 10.1.1.0/24 via 10.2.255.15 dev r4-eth2')
-    r1.cmd('ip route add 10.2.2.0/24 via 10.1.255.16 dev r1-eth2')
+    R4.cmd('ip route add 10.1.1.0/27 via 10.2.255.29 dev R4-eth2')
+    R1.cmd('ip route add 10.4.1.0/27 via 10.2.255.30 dev R1-eth2')
     
-    r3.cmd('ip route add 10.2.1.0/24 via 10.2.255.19 dev r3-eth2')
-    r2.cmd('ip route add 10.1.2.0/24 via 10.1.255.20 dev r2-eth2')
+    R3.cmd('ip route add 10.2.1.0/27 via 10.2.255.19 dev R3-eth2')
+    R2.cmd('ip route add 10.3.1.0/27 via 10.2.255.20 dev R2-eth2')
+    
+    R1.cmd('route add -net 10.1.255.16/29 gw 10.1.255.2')
+    R1.cmd('route add -net 10.1.255.8/29 gw 10.2.255.30')
+    R1.cmd('route add -net 10.2.1.0/27 gw 10.1.255.2')
+    R2.cmd('route add -net 10.1.1.0/27 gw 10.1.255.10')
+    R2.cmd('route add -net 10.1.255.0/29 gw 10.2.255.20')
+    R2.cmd('route add -net 10.1.255.26/29 gw 10.1.255.10')
+    
+    R3.cmd('route add -net 10.1.255.26/29 gw 10.1.255.1')
+    R3.cmd('route add -net 10.1.255.8/29 gw 10.2.255.19')
+    R3.cmd('route add -net 10.4.1.0/27 gw 10.1.255.1')
+    R4.cmd('route add -net 10.3.1.0/27 gw 10.1.255.9')
+    R4.cmd('route add -net 10.1.255.0/29 gw 10.2.255.29')
+    R4.cmd('route add -net 10.1.255.18/29 gw 10.1.255.9')
+    
+    R1.cmd('ip route add 10.1.2.0/27 via 10.1.1.4 dev R1-eth0')
+    R2.cmd('ip route add 10.1.1.0/27 via 10.2.1.4 dev R2-eth0')
+    
+    R3.cmd('ip route add 10.4.1.0/27 via 10.3.0.4 dev R3-eth0')
+    R4.cmd('ip route add 10.3.1.0/27 via 10.4.0.4 dev R4-eth0')
+    
     # Start Network
     net.start()
     
     # Ping All Host
     info( '\n', net.ping() ,'\n' )
-    # info( '\n', net.ping() ,'\n' )
     # info(net['h0'].cmd('ifconfig'))
     # info(net['r1'].cmd('ifconfig'))
     # info(net['r2'].cmd('ifconfig'))
     # info(net['r3'].cmd('ifconfig'))
-
-
+    
+    # Test iperf
+    testIperf( net, 'HA', ('HB') )
+    x = input()
     
     # # Set Queue Discipline to CBQ
-    # info( '\n*** Queue Disicline :\n' )
+    info( '\n*** Queue Disicline :\n' )
     
     # # reset queue discipline
-    # r1.cmdPrint( 'tc qdisc del dev r1-eth0 root' ) 
+    R1.cmdPrint( 'tc qdisc del dev R1-eth0 root' ) 
+    R2.cmdPrint('tc qdisc del dev R2-eth0 root')
+    R3.cmdPrint('tc qdisc del dev R3-eth0 root')
+    R4.cmdPrint('tc qdisc del dev R4-eth0 root')
 
     # # add queue discipline root here
+    info('\n*** QUEUE Disicline : CBQ\n')
+    R1.cmdPrint('tc qdisc add dev R1-eth0 root handle 1: cbq rate 10Mbit avpkt 1000')
+    R2.cmdPrint('tc qdisc add dev R2-eth0 root handle 1: cbq rate 10Mbit avpkt 1000')
+    R3.cmdPrint('tc qdisc add dev R3-eth0 root handle 1: cbq rate 10Mbit avpkt 1000')
+    R4.cmdPrint('tc qdisc add dev R4-eth0 root handle 1: cbq rate 10Mbit avpkt 1000')
+    
+    R1.cmdPrint('tc class add dev R1-eth0 parent 1: classid 1:1 cbq rate 5Mbit avpkt 1000 bounded')
+    R1.cmdPrint('tc filter add dev R1-eth0 parent 1: protocol ip u32 match ip src '+ HA.IP()+' flowid 1:1')
+    R2.cmdPrint('tc class add dev R2-eth0 parent 1: classid 1:1 cbq rate 5Mbit avpkt 1000 bounded')
+    R2.cmdPrint('tc filter add dev R2-eth0 parent 1: protocol ip u32 match ip src '+ HA.IP()+' flowid 1:1')
+    R3.cmdPrint('tc class add dev R3-eth0 parent 1: classid 1:1 cbq rate 5Mbit avpkt 1000 bounded')
+    R3.cmdPrint('tc filter add dev R3-eth0 parent 1: protocol ip u32 match ip src '+ HB.IP()+' flowid 1:1')
+    R4.cmdPrint('tc class add dev R4-eth0 parent 1: classid 1:1 cbq rate 5Mbit avpkt 1000 bounded')
+    R4.cmdPrint('tc filter add dev R4-eth0 parent 1: protocol ip u32 match ip src '+ HB.IP()+' flowid 1:1')
+    
+    info('\n')
      
-    
     # # add queue dicipline classes here 
+    R1.cmdPrint('tc class add dev R1-eth0 parent 1: classid 1:1 cbq rate 5Mbit avpkt 1000 bounded' )
+    R2.cmdPrint('tc class add dev R2-eth0 parent 1: classid 1:1 cbq rate 5Mbit avpkt 1000 bounded' )
+    R3.cmdPrint('tc class add dev R3-eth0 parent 1: classid 1:1 cbq rate 5Mbit avpkt 1000 bounded' )
+    R4.cmdPrint('tc class add dev R4-eth0 parent 1: classid 1:1 cbq rate 5Mbit avpkt 1000 bounded' )
     
-
+    
     # # add queue dicipline filters
-    # r1.cmdPrint( 'tc filter add dev r1-eth0 parent 1: protocol ip u32 match ip src '+h1.IP()+' flowid 1:1' ) 
-    # r1.cmdPrint( 'tc filter add dev r1-eth0 parent 1: protocol ip u32 match ip src '+net[ 'h2' ].IP()+' flowid 1:2' ) 
-    # r1.cmdPrint( 'tc qdisc show dev r1-eth0' )
-    # info( '\n' )
+    R1.cmdPrint( 'tc filter add dev R1-eth0 parent 1: protocol ip u32 match ip src '+HA.IP()+' flowid 1:1' ) 
+    R2.cmdPrint( 'tc filter add dev R2-eth0 parent 1: protocol ip u32 match ip src '+HA.IP()+' flowid 1:1' ) 
+    R3.cmdPrint( 'tc filter add dev R3-eth0 parent 1: protocol ip u32 match ip src '+HB.IP()+' flowid 1:1' ) 
+    R4.cmdPrint( 'tc filter add dev R4-eth0 parent 1: protocol ip u32 match ip src '+HB.IP()+' flowid 1:1' ) 
+    R1.cmdPrint( 'tc qdisc show dev R1-eth0' )
+    R2.cmdPrint( 'tc qdisc show dev R2-eth0' )
+    R3.cmdPrint( 'tc qdisc show dev R3-eth0' )
+    R4.cmdPrint( 'tc qdisc show dev R4-eth0' )
+    info( '\n' )
 
     # Test Iperf
-    #testIperf( net, 'h0', ('h1') )
+    testIperf( net, 'HA', ('HB') )
 
     # Stop Network
     # net.stop()
