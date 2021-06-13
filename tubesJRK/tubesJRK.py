@@ -53,18 +53,15 @@ def routerNet():
     HA = net.addHost( 'HA', ip='10.1.1.4/27', defaultRoute = 'via 10.1.1.1' )
     HB = net.addHost( 'HB', ip='10.3.1.4/27', defaultRoute = 'via 10.3.1.1' )
     
-    # Add Max buffer
-    linkopts0 = dict(max_queue_size = 20)
-    
     # Add Link
-    net.addLink(HA, R1, intfName1='HA-eth0',intfName2='R1-eth0', bw=1, **linkopts0 )
-    net.addLink(HB, R3, intfName1='HB-eth0',intfName2='R3-eth0', bw=1, **linkopts0 ) 
-    net.addLink(HA, R2, intfName1='HA-eth1',intfName2='R2-eth0', bw=1, **linkopts0 )
-    net.addLink(HB, R4, intfName1='HB-eth1',intfName2='R4-eth0', bw=1, **linkopts0 )
-    net.addLink(R1, R3, intfName1='R1-eth1', intfName2='R3-eth1', bw=1, **linkopts0 )
-    net.addLink(R2, R4, intfName1='R2-eth1', intfName2='R4-eth1', bw=1, **linkopts0 )
-    net.addLink(R1, R4, intfName1='R1-eth2', intfName2='R4-eth2', bw=0.5, **linkopts0 )
-    net.addLink(R2, R3, intfName1='R2-eth2', intfName2='R3-eth2', bw=0.5, **linkopts0 )
+    net.addLink(HA, R1, intfName1='HA-eth0',intfName2='R1-eth0', bw=1 )
+    net.addLink(HB, R3, intfName1='HB-eth0',intfName2='R3-eth0', bw=1 ) 
+    net.addLink(HA, R2, intfName1='HA-eth1',intfName2='R2-eth0', bw=1 )
+    net.addLink(HB, R4, intfName1='HB-eth1',intfName2='R4-eth0', bw=1 )
+    net.addLink(R1, R3, intfName1='R1-eth1', intfName2='R3-eth1', bw=1 )
+    net.addLink(R2, R4, intfName1='R2-eth1', intfName2='R4-eth1', bw=1 )
+    net.addLink(R1, R4, intfName1='R1-eth2', intfName2='R4-eth2', bw=0.5 )
+    net.addLink(R2, R3, intfName1='R2-eth2', intfName2='R3-eth2', bw=0.5 )
    
     # Add IP host
     HA.cmd( 'ip addr add 10.1.1.4/27 brd + dev HA-eth0' )
@@ -103,10 +100,10 @@ def routerNet():
     HB.cmd('route add -net 10.3.1.0 netmask 255.255.255.224 gw 10.3.1.1')
     HB.cmd('route add -net 10.4.1.0 netmask 255.255.255.224 gw 10.4.1.1')
     
-    R1.cmd('ip route add 10.2.1.0/27 dev R1-eth0')
-    R2.cmd('ip route add 10.1.1.0/27 dev R2-eth0')
-    R3.cmd('ip route add 10.4.1.0/27 dev R3-eth0')
-    R4.cmd('ip route add 10.3.1.0/27 dev R4-eth0')
+    R1.cmd('ip route add 10.1.1.0/27 dev R1-eth0')
+    R2.cmd('ip route add 10.2.1.0/27 dev R2-eth0')
+    R3.cmd('ip route add 10.3.1.0/27 dev R3-eth0')
+    R4.cmd('ip route add 10.4.1.0/27 dev R4-eth0')
     
     R3.cmd('ip route add 10.1.1.0/27 via 10.1.255.1 dev R3-eth1')
     R1.cmd('ip route add 10.3.1.0/27 via 10.1.255.2 dev R1-eth1')
@@ -120,25 +117,25 @@ def routerNet():
     R3.cmd('ip route add 10.2.1.0/27 via 10.2.255.19 dev R3-eth2')
     R2.cmd('ip route add 10.3.1.0/27 via 10.2.255.20 dev R2-eth2')
     
-    R1.cmd('route add -net 10.1.255.16/29 gw 10.1.255.2')
+    R1.cmd('route add -net 10.2.255.16/29 gw 10.1.255.2')
     R1.cmd('route add -net 10.1.255.8/29 gw 10.2.255.30')
     R1.cmd('route add -net 10.2.1.0/27 gw 10.1.255.2')
     R2.cmd('route add -net 10.1.1.0/27 gw 10.1.255.10')
     R2.cmd('route add -net 10.1.255.0/29 gw 10.2.255.20')
-    R2.cmd('route add -net 10.1.255.26/29 gw 10.1.255.10')
+    R2.cmd('route add -net 10.2.255.26/29 gw 10.1.255.10')
     
-    R3.cmd('route add -net 10.1.255.26/29 gw 10.1.255.1')
+    R3.cmd('route add -net 10.2.255.26/29 gw 10.1.255.1')
     R3.cmd('route add -net 10.1.255.8/29 gw 10.2.255.19')
     R3.cmd('route add -net 10.4.1.0/27 gw 10.1.255.1')
     R4.cmd('route add -net 10.3.1.0/27 gw 10.1.255.9')
     R4.cmd('route add -net 10.1.255.0/29 gw 10.2.255.29')
-    R4.cmd('route add -net 10.1.255.18/29 gw 10.1.255.9')
+    R4.cmd('route add -net 10.2.255.16/29 gw 10.1.255.9')
     
-    R1.cmd('ip route add 10.1.2.0/27 via 10.1.1.4 dev R1-eth0')
-    R2.cmd('ip route add 10.1.1.0/27 via 10.2.1.4 dev R2-eth0')
+    R1.cmd('ip route add 10.1.2.0/27 via 10.1.255.2 dev R1-eth1')
+    R2.cmd('ip route add 10.1.1.0/27 via 10.1.255.10 dev R2-eth1')
     
-    R3.cmd('ip route add 10.4.1.0/27 via 10.3.0.4 dev R3-eth0')
-    R4.cmd('ip route add 10.3.1.0/27 via 10.4.0.4 dev R4-eth0')
+    R3.cmd('ip route add 10.4.1.0/27 via 10.1.255.1 dev R3-eth1')
+    R4.cmd('ip route add 10.3.1.0/27 via 10.1.255.9 dev R4-eth1')
     
     # Start Network
     net.start()
@@ -151,8 +148,8 @@ def routerNet():
     # info(net['r3'].cmd('ifconfig'))
     
     # Test iperf
-    testIperf( net, 'HA', ('HB') )
-    x = input()
+    #testIperf( net, 'HA', ('HB') )
+    #x = input()
     
     # # Set Queue Discipline to CBQ
     info( '\n*** Queue Disicline :\n' )
@@ -200,7 +197,7 @@ def routerNet():
     info( '\n' )
 
     # Test Iperf
-    testIperf( net, 'HA', ('HB') )
+    #testIperf( net, 'HA', ('HB') )
 
     # Stop Network
     # net.stop()
